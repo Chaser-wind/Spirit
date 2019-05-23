@@ -73,3 +73,8 @@ docs/_build/
 
 # Tx
 .transifexrc
+
+/.venv
+/.vscode
+/Site
+.DS_Store
