@@ -1,0 +1,22 @@
+1. 修改publish的html，在/topic/templates/spirit/top/publish.html
+看到提交按钮元素
+<input class="button reply-button" type="submit" value="{% trans "Publish" %}" />
+在提交按钮这个input元素下面再加一个input元素
+<input type="checkbox" name="anonymous" value="yes">{% trans "Anonymous" %}</br>
+checkbox是复选框
+
+2. 修改模版渲染文件/core/static/spirit/stylesheets/styles.all.min.css
+第7行124346列处定义了checkbox的排版样式
+input[type=checkbox]{display:block;margin:6px 12px 24px}
+把display:block;用/* */包括起来注释掉
+
+3. 在/topic/views.py的pulish函数判断request.method是POST之后，
+这里进入存储帖子(Topic对象)的部分，可以通过判断request.POST.dict()字典里有没有'anonymous'键
+来判断是不是匿名发帖请求。
+
+TODO:
+
+针对匿名发帖请求，修改TopicForm的参数user，不传真实的user对象。
+user对象是django.contrib.auth.User实例，可能需要新建一个假user
+
+    comment方面还没做，大致流程应该差不多
