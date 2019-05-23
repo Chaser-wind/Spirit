@@ -34,19 +34,6 @@ except ImportError as err:
     magic = None
 
 
-def save_user_file(user, file, subdir, hashed=False):
-    """
-    Save user media file into sub-dir. \
-    The `hashed`` param prevents file duplication
-    """
-    file_path = utils.generate_filename(file, hashed=hashed)
-    name = os.path.join('spirit', subdir, str(user.pk), file_path)
-    name = default_storage.save(name, file)
-    file.name = os.path.basename(file_path)
-    file.url = default_storage.url(name)
-    return file
-
-
 class CommentForm(forms.ModelForm):
     comment = forms.CharField(
         label=_('Comment'),
@@ -144,7 +131,7 @@ class CommentMoveForm(forms.Form):
 
 class CommentImageForm(forms.Form):
 
-    image = forms.ImageField(max_length=255)
+    image = forms.ImageField()
 
     def __init__(self, user=None, *args, **kwargs):
         super(CommentImageForm, self).__init__(*args, **kwargs)
@@ -152,9 +139,9 @@ class CommentImageForm(forms.Form):
 
     def clean_image(self):
         file = self.cleaned_data['image']
-        ext = os.path.splitext(file.name)[1].lstrip('.').lower()
+        ext = os.path.splitext(file.name)[1].lstrip('.')
 
-        if (ext not in settings.ST_ALLOWED_UPLOAD_IMAGE_FORMAT or
+        if (ext.lower() not in settings.ST_ALLOWED_UPLOAD_IMAGE_FORMAT or
                 file.image.format.lower() not in settings.ST_ALLOWED_UPLOAD_IMAGE_FORMAT):
             raise forms.ValidationError(
                 _("Unsupported file format. Supported formats are %s.") %
@@ -163,16 +150,18 @@ class CommentImageForm(forms.Form):
         return file
 
     def save(self):
-        return save_user_file(
-            user=self.user,
-            file=self.cleaned_data['image'],
-            subdir='images',
-            hashed=settings.ST_PREVENT_SOME_FILE_DUPLICATION)
+        file = self.cleaned_data['image']
+        file_hash = utils.get_file_hash(file)
+        file.name = ''.join((file_hash, '.', file.image.format.lower()))
+        name = os.path.join('spirit', 'images', str(self.user.pk), file.name)
+        name = default_storage.save(name, file)
+        file.url = default_storage.url(name)
+        return file
 
 
 class CommentFileForm(forms.Form):
 
-    file = forms.FileField(max_length=255)
+    file = forms.FileField()
 
     def __init__(self, user=None, *args, **kwargs):
         super(CommentFileForm, self).__init__(*args, **kwargs)
@@ -185,8 +174,10 @@ class CommentFileForm(forms.Form):
            raise forms.ValidationError(_("The file could not be validated"))
 
         # Won't ever raise. Has at most one '.' so lstrip is fine here
-        ext = os.path.splitext(file.name)[1].lstrip('.').lower()
-        if ext not in settings.ST_ALLOWED_UPLOAD_FILE_MEDIA_TYPE:
+        ext = os.path.splitext(file.name)[1].lstrip('.')
+        mime = settings.ST_ALLOWED_UPLOAD_FILE_MEDIA_TYPE.get(ext, None)
+
+        if mime is None:
             raise forms.ValidationError(
                 _("Unsupported file extension %(extension)s. "
                   "Supported extensions are %(supported)s.") % {
@@ -203,7 +194,6 @@ class CommentFileForm(forms.Form):
             logger.exception(e)
             raise forms.ValidationError(_("The file could not be validated"))
 
-        mime = settings.ST_ALLOWED_UPLOAD_FILE_MEDIA_TYPE.get(ext, None)
         if mime != file_mime:
             raise forms.ValidationError(
                 _("Unsupported file mime type %(mime)s. "
@@ -215,8 +205,11 @@ class CommentFileForm(forms.Form):
         return file
 
     def save(self):
-        return save_user_file(
-            user=self.user,
-            file=self.cleaned_data['file'],
-            subdir='files',
-            hashed=settings.ST_PREVENT_SOME_FILE_DUPLICATION)
+        file = self.cleaned_data['file']
+        file_hash = utils.get_file_hash(file)
+        file_name, file_ext = os.path.splitext(file.name.lower())
+        file.name = ''.join((file_name, '_', file_hash, file_ext))
+        name = os.path.join('spirit', 'files', str(self.user.pk), file.name)
+        name = default_storage.save(name, file)
+        file.url = default_storage.url(name)
+        return file

@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponsePermanentRedirect
-
+from django.contrib.auth.models import User
 from djconfig import config
 
 from ..core.utils.paginator import paginate, yt_paginate
@@ -31,6 +31,14 @@ def publish(request, category_id=None):
     user = request.user
 
     if request.method == 'POST':
+        #print(request.POST)
+        anony = 'anonymous' in request.POST.dict()
+        if anony:
+            print(user, end='')
+            print(' wants to be anonymous.')
+            #user = '(Anonymous)'
+            (user, i) = User.objects.get_or_create(username='Anonymous')
+        
         form = TopicForm(user=user, data=request.POST)
         cform = CommentForm(user=user, data=request.POST)
 
